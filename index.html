@@ -1,0 +1,455 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freelah.SG - Enjoy Singapore without breaking the bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom, #e0f2fe, #bfdbfe);
+            color: #1e40af;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        h1 {
+            color: #1e3a8a;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+        }
+        h2, h3 {
+            color: #1e3a8a;
+        }
+        .event-card, .food-card {
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.75rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .event-card:hover, .food-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        select, input[type="checkbox"] {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+        }
+        .ad-section {
+            background: #f3f4f6;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .tab {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            background: #eff6ff;
+            margin-right: 0.5rem;
+        }
+        .tab.active {
+            background: #1e40af;
+            color: white;
+        }
+        .disclaimer {
+            font-size: 0.875rem;
+            color: #4b5563;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto p-6">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-center mb-2 tracking-tight">Freelah.SG</h1>
+        <p class="text-2xl md:text-3xl text-center mb-8 text-blue-900">Enjoy Singapore without breaking the bank</p>
+
+        <!-- Tabs -->
+        <div class="flex mb-6">
+            <div class="tab active" data-tab="events">Events</div>
+            <div class="tab" data-tab="food">Food</div>
+        </div>
+
+        <!-- Events Section -->
+        <div id="eventsSection" class="section">
+            <!-- Filter Section -->
+            <div class="mb-8 bg-white p-4 rounded-lg shadow">
+                <div class="flex flex-wrap gap-4">
+                    <select id="eventCategoryFilter" class="p-2">
+                        <option value="all">All Categories</option>
+                        <option value="free">Free Events</option>
+                        <option value="under5">Under $5</option>
+                        <option value="today">Today</option>
+                        <option value="thisWeek">This Week</option>
+                    </select>
+                    <select id="eventMrtFilter" class="p-2">
+                        <option value="all">All MRT Stations</option>
+                        <option value="Raffles Place">Raffles Place</option>
+                        <option value="Bayfront">Bayfront</option>
+                        <option value="Dhoby Ghaut">Dhoby Ghaut</option>
+                    </select>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="eventWheelchairFilter" class="mr-2"> Wheelchair Accessible
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="eventKidsFilter" class="mr-2"> Kid-Friendly
+                    </label>
+                </div>
+            </div>
+
+            <!-- Events List -->
+            <div id="eventsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"></div>
+        </div>
+
+        <!-- Food Section -->
+        <div id="foodSection" class="section hidden">
+            <!-- Filter Section -->
+            <div class="mb-8 bg-white p-4 rounded-lg shadow">
+                <div class="flex flex-wrap gap-4">
+                    <select id="foodCategoryFilter" class="p-2">
+                        <option value="all">All Categories</option>
+                        <option value="free">Free Offers</option>
+                        <option value="under5">Under $5</option>
+                        <option value="happyHour">Happy Hour</option>
+                    </select>
+                    <select id="foodMrtFilter" class="p-2">
+                        <option value="all">All MRT Stations</option>
+                        <option value="Raffles Place">Raffles Place</option>
+                        <option value="City Hall">City Hall</option>
+                        <option value="Orchard">Orchard</option>
+                    </select>
+                </div>
+                <p class="disclaimer">While we endeavour to list all web-published information, restaurants or event owners may change their offers. This site is free of charge, and we are not liable for outdated information. Please always check with the restaurants if the offers are still valid.</p>
+            </div>
+
+            <!-- Food List -->
+            <div id="foodList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"></div>
+        </div>
+
+        <!-- Ad Section -->
+        <div class="ad-section mt-12">
+            <h2 class="text-xl font-semibold mb-4">Sponsored</h2>
+            <p>Ad space for your promotions. Contact us to advertise here!</p>
+            <img src="https://via.placeholder.com/728x90?text=Ad+Space" alt="Ad Banner" class="mx-auto mt-4">
+        </div>
+    </div>
+
+    <script>
+        const events = [
+            {
+                id: 1,
+                name: "i Light Singapore 2025",
+                category: "free",
+                date: "2025-05-24 to 2025-06-15",
+                location: "Marina Bay",
+                mrt: "Raffles Place",
+                wheelchair: true,
+                kids: true,
+                description: "Immersive art installations and community events at Marina Bay.",
+                image: "https://via.placeholder.com/300x200?text=i+Light+Singapore",
+                url: "https://www.ilightsingapore.gov.sg/"
+            },
+            {
+                id: 2,
+                name: "Children's Festival 2025: Lilo & Stitch",
+                category: "free",
+                date: "2025-05-24 to 2025-06-15",
+                location: "Gardens by the Bay",
+                mrt: "Bayfront",
+                wheelchair: true,
+                kids: true,
+                description: "Inflatable installations, games, and Lilo & Stitch-themed fun.",
+                image: "https://via.placeholder.com/300x200?text=Children's+Festival",
+                url: "https://www.gardensbythebay.com.sg/"
+            },
+            {
+                id: 3,
+                name: "The Artground",
+                category: "under5",
+                date: "Ongoing",
+                location: "Goodman Arts Centre",
+                mrt: "Dhoby Ghaut",
+                wheelchair: true,
+                kids: true,
+                description: "Interactive art space for kids up to 9 years, $5/pax.",
+                image: "https://via.placeholder.com/300x200?text=The+Artground",
+                url: "https://theartground.com.sg/"
+            },
+            {
+                id: 4,
+                name: "KidsSTOP",
+                category: "under5",
+                date: "Ongoing",
+                location: "Singapore Science Centre",
+                mrt: "Jurong East",
+                wheelchair: true,
+                kids: true,
+                description: "Science-based exhibits for kids, from $5 for residents.",
+                image: "https://via.placeholder.com/300x200?text=KidsSTOP",
+                url: "https://www.science.edu.sg/visit-us/kidsstop"
+            },
+            {
+                id: 5,
+                name: "Free Yoga Trial Class",
+                category: "free",
+                date: "Ongoing",
+                location: "Various Locations",
+                mrt: "Dhoby Ghaut",
+                wheelchair: false,
+                kids: false,
+                description: "Free trial yoga class for beginners at community centers.",
+                image: "https://via.placeholder.com/300x200?text=Yoga+Trial",
+                url: "https://www.pa.gov.sg/our-programmes/activities-and-courses"
+            },
+            {
+                id: 6,
+                name: "Art Workshop Trial",
+                category: "under5",
+                date: "Ongoing",
+                location: "Community Art Studio",
+                mrt: "Raffles Place",
+                wheelchair: true,
+                kids: true,
+                description: "Try a painting workshop for $4 at local art studios.",
+                image: "https://via.placeholder.com/300x200?text=Art+Workshop",
+                url: "https://www.nac.gov.sg/whatwedo/engage/arts-for-all"
+            }
+        ];
+
+        const foodOffers = [
+            {
+                id: 7,
+                name: "Happy Hour Chicken Wings",
+                category: "under5",
+                time: "5 PM - 7 PM",
+                location: "The Drunken Poet",
+                mrt: "Orchard",
+                description: "$4 for 6 chicken wings during happy hour.",
+                image: "https://via.placeholder.com/300x200?text=Chicken+Wings",
+                url: "https://www.thedrunkenpoet.com.sg/"
+            },
+            {
+                id: 8,
+                name: "Free Coffee Tasting",
+                category: "free",
+                time: "Weekends 2 PM - 4 PM",
+                location: "Nylon Coffee Roasters",
+                mrt: "City Hall",
+                description: "Free coffee tasting session with purchase of any item.",
+                image: "https://via.placeholder.com/300x200?text=Coffee+Tasting",
+                url: "https://www.nyloncoffee.sg/"
+            },
+            {
+                id: 9,
+                name: "Happy Hour Draft Beer",
+                category: "under5",
+                time: "4 PM - 6 PM",
+                location: "Brewerkz Riverside",
+                mrt: "Raffles Place",
+                description: "$4.50 draft beers during happy hour.",
+                image: "https://via.placeholder.com/300x200?text=Draft+Beer",
+                url: "https://www.brewerkz.com/"
+            },
+            {
+                id: 10,
+                name: "Budget Bites: Fries",
+                category: "under5",
+                time: "All Day",
+                location: "Potato Head",
+                mrt: "City Hall",
+                description: "$3.50 basket of fries with any drink purchase.",
+                image: "https://via.placeholder.com/300x200?text=Fries",
+                url: "https://www.potatohead.co/singapore"
+            }
+        ];
+
+        function isEventToday(event) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (event.date === "Ongoing") return true;
+            const [start, end] = event.date.split(" to ");
+            const startDate = new Date(start);
+            const endDate = end ? new Date(end) : startDate;
+            return today >= startDate && today <= endDate;
+        }
+
+        function isEventThisWeek(event) {
+            const today = new Date();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            if (event.date === "Ongoing") return true;
+            const [start, end] = event.date.split(" to ");
+            const startDate = new Date(start);
+            const endDate = end ? new Date(end) : startDate;
+            return startDate <= endOfWeek && endDate >= startOfWeek;
+        }
+
+        function displayEvents(filteredEvents) {
+            const eventsList = document.getElementById('eventsList');
+            eventsList.innerHTML = '';
+            filteredEvents.forEach(event => {
+                const eventCard = document.createElement('div');
+                eventCard.className = 'event-card p-6';
+                eventCard.innerHTML = `
+                    <img src="${event.image}" alt="${event.name}" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-bold mb-2">${event.name}</h3>
+                    <p><strong>Category:</strong> ${event.category === 'free' ? 'Free' : 'Under $5'}</p>
+                    <p><strong>Date:</strong> ${event.date}</p>
+                    <p><strong>Location:</strong> ${event.location}</p>
+                    <p><strong>Nearest MRT:</strong> ${event.mrt}</p>
+                    <p><strong>Wheelchair Accessible:</strong> ${event.wheelchair ? 'Yes' : 'No'}</p>
+                    <p><strong>Kid-Friendly:</strong> ${event.kids ? 'Yes' : 'No'}</p>
+                    <p class="mt-2">${event.description}</p>
+                    <p><a href="${event.url}" target="_blank" class="text-blue-500 hover:underline">View details and reviews</a></p>
+                `;
+                eventsList.appendChild(eventCard);
+            });
+        }
+
+        function displayFoodOffers(filteredOffers) {
+            const foodList = document.getElementById('foodList');
+            foodList.innerHTML = '';
+            filteredOffers.forEach(offer => {
+                const foodCard = document.createElement('div');
+                foodCard.className = 'food-card p-6';
+                foodCard.innerHTML = `
+                    <img src="${offer.image}" alt="${offer.name}" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-bold mb-2">${offer.name}</h3>
+                    <p><strong>Category:</strong> ${offer.category === 'free' ? 'Free' : offer.category === 'under5' ? 'Under $5' : 'Happy Hour'}</p>
+                    <p><strong>Time:</strong> ${offer.time}</p>
+                    <p><strong>Location:</strong> ${offer.location}</p>
+                    <p><strong>Nearest MRT:</strong> ${offer.mrt}</p>
+                    <p class="mt-2">${offer.description}</p>
+                    <p><a href="${offer.url}" target="_blank" class="text-blue-500 hover:underline">View details and reviews</a></p>
+                `;
+                foodList.appendChild(foodCard);
+            });
+        }
+
+        function filterEvents() {
+            const category = document.getElementById('eventCategoryFilter').value;
+            const mrt = document.getElementById('eventMrtFilter').value;
+            const wheelchair = document.getElementById('eventWheelchairFilter').checked;
+            const kids = document.getElementById('eventKidsFilter').checked;
+
+            let filteredEvents = events;
+
+            if (category !== 'all') {
+                if (category === 'today') {
+                    filteredEvents = filteredEvents.filter(event => isEventToday(event));
+                } else if (category === 'thisWeek') {
+                    filteredEvents = filteredEvents.filter(event => isEventThisWeek(event));
+                } else {
+                    filteredEvents = filteredEvents.filter(event => event.category === category);
+                }
+            }
+
+            if (mrt !== 'all') {
+                filteredEvents = filteredEvents.filter(event => event.mrt === mrt);
+            }
+
+            if (wheelchair) {
+                filteredEvents = filteredEvents.filter(event => event.wheelchair);
+            }
+
+            if (kids) {
+                filteredEvents = filteredEvents.filter(event => event.kids);
+            }
+
+            displayEvents(filteredEvents);
+        }
+
+        function filterFoodOffers() {
+            const category = document.getElementById('foodCategoryFilter').value;
+            const mrt = document.getElementById('foodMrtFilter').value;
+
+            let filteredOffers = foodOffers;
+
+            if (category !== 'all') {
+                filteredOffers = filteredOffers.filter(offer => offer.category === category);
+            }
+
+            if (mrt !== 'all') {
+                filteredOffers = filteredOffers.filter(offer => offer.mrt === mrt);
+            }
+
+            displayFoodOffers(filteredOffers);
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.section').forEach(section => section.classList.add('hidden'));
+                document.getElementById(`${tab.dataset.tab}Section`).classList.remove('hidden');
+                if (tab.dataset.tab === 'events') {
+                    filterEvents();
+                } else {
+                    filterFoodOffers();
+                }
+            });
+        });
+
+        // Initial display
+        displayEvents(events);
+        displayFoodOffers(foodOffers);
+
+        // Event listeners for filters
+        document.getElementById('eventCategoryFilter').addEventListener('change', filterEvents);
+        document.getElementById('eventMrtFilter').addEventListener('change', filterEvents);
+        document.getElementById('eventWheelchairFilter').addEventListener('change', filterEvents);
+        document.getElementById('eventKidsFilter').addEventListener('change', filterEvents);
+        document.getElementById('foodCategoryFilter').addEventListener('change', filterFoodOffers);
+        document.getElementById('foodMrtFilter').addEventListener('change', filterFoodOffers);
+    </script>
+</body>
+</html>
